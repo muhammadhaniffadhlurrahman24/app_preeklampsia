@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Admin - Sistem Prediksi Preeklampsia</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'screening/styles.css' %}" />
+  </head>
+  <body>
+    <!-- Admin Dashboard Container -->
+    <div id="admin-dashboard-container" class="admin-dashboard-container">
+      {% if messages %}
+      <div id="messages-data" style="display: none;" data-messages='{% for message in messages %}{{ message|escapejs }}{% if not forloop.last %}|||{% endif %}{% endfor %}'></div>
+      <script>
+        document.addEventListener('DOMContentLoaded', function(){
+          var messagesEl = document.getElementById('messages-data');
+          if (messagesEl) {
+            var messagesData = messagesEl.getAttribute('data-messages');
+            if (messagesData) {
+              var messages = messagesData.split('|||');
+              messages.forEach(function(msg) {
+                if (msg.trim()) {
+                  alert(msg);
+                }
+              });
+            }
+          }
+        });
+      </script>
+      {% endif %}
+      <!-- Admin Header -->
+      <header class="admin-header">
+        <div class="admin-header-content">
+          <div class="admin-header-left">
+            <h1 class="admin-title">Dashboard Admin</h1>
+          </div>
+          <div class="admin-header-right">
+            <form method="POST" action="{% url 'admin_logout' %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-logout">Logout Admin</button>
+            </form>
+          </div>
+        </div>
+      </header>
+
+      <!-- Admin Content -->
+      <main class="admin-main">
+        <!-- Statistics Section -->
+        <div class="admin-stats">
+          <div class="stat-card">
+            <div class="stat-icon">📊</div>
+            <div class="stat-content">
+              <div class="stat-value" id="total-predictions">
+                {{ total_predictions|default:"0" }}
+              </div>
+              <div class="stat-label">Total Prediksi</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">⚠️</div>
+            <div class="stat-content">
+              <div class="stat-value" id="preeclampsia-count">
+                {{ preeclampsia_count|default:"0" }}
+              </div>
+              <div class="stat-label">Preeklampsia</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">✅</div>
+            <div class="stat-content">
+              <div class="stat-value" id="non-preeclampsia-count">
+                {{ non_preeclampsia_count|default:"0" }}
+              </div>
+              <div class="stat-label">Non-Preeklampsia</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">👥</div>
+            <div class="stat-content">
+              <div class="stat-value" id="total-users">
+                {{ total_users|default:"0" }}
+              </div>
+              <div class="stat-label">Total User</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter Section -->
+        <div class="admin-filters">
+          <div class="filter-group">
+            <input
+              type="text"
+              id="search-patient"
+              placeholder="Cari nama pasien..."
+              class="filter-input"
+            />
+            <select id="filter-result" class="filter-select">
+              <option value="">Semua Hasil</option>
+              <option value="preeklampsia">Preeklampsia</option>
+              <option value="non-preeklampsia">Non-Preeklampsia</option>
+            </select>
+            <button
+              type="button"
+              class="btn btn-primary btn-filter"
+              style="width: auto"
+            >
+              Filter
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary btn-clear"
+              style="width: auto"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+
+        <!-- History Table -->
+        <div class="admin-table-wrapper">
+          <div class="admin-table-container">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th class="sticky-col sticky-col-1">No</th>
+                  <th>Email</th>
+                  <th>Tanggal</th>
+                  <th
+                    colspan="8"
+                    style="text-align: center; background: #e8f4f8"
+                  >
+                    INFORMASI DASAR PASIEN
+                  </th>
+                  <th
+                    colspan="6"
+                    style="text-align: center; background: #fff4e6"
+                  >
+                    RIWAYAT KEHAMILAN & PERENCANAAN
+                  </th>
+                  <th
+                    colspan="7"
+                    style="text-align: center; background: #ffe6e6"
+                  >
+                    RIWAYAT PRIBADI & PENYAKIT IBU
+                  </th>
+                  <th
+                    colspan="8"
+                    style="text-align: center; background: #e6ffe6"
+                  >
+                    ANTROPOMETRI & PEMERIKSAAN
+                  </th>
+                  <th
+                    colspan="3"
+                    style="text-align: center; background: #f0e6ff"
+                  >
+                    RIWAYAT PENYAKIT KELUARGA
+                  </th>
+                  <th
+                    colspan="1"
+                    style="text-align: center; background: #ffe6f0"
+                  >
+                    HASIL PREDIKSI
+                  </th>
+                </tr>
+                <tr>
+                  <!-- INFORMASI DASAR PASIEN -->
+                  <th class="sticky-col sticky-col-1"></th>
+                  <th></th>
+                  <th></th>
+                  <th>Nama Pasien</th>
+                  <th>Kabupaten/Kota</th>
+                  <th>Usia</th>
+                  <th>Pendidikan</th>
+                  <th>Pekerjaan</th>
+                  <th>Status Nikah</th>
+                  <th>Pernikahan Ke</th>
+                  <th>Paritas</th>
+
+                  <!-- RIWAYAT KEHAMILAN & PERENCANAAN -->
+                  <th>Pasangan Baru</th>
+                  <th>Jarak Anak &gt;10th</th>
+                  <th>Bayi Tabung</th>
+                  <th>Gemeli</th>
+                  <th>Perokok</th>
+                  <th>Hamil Direncanakan</th>
+
+                  <!-- RIWAYAT PRIBADI & PENYAKIT IBU -->
+                  <th>Riwayat Keluarga PE</th>
+                  <th>Riwayat PE</th>
+                  <th>HT Kronis</th>
+                  <th>DM</th>
+                  <th>Ginjal</th>
+                  <th>Autoimune</th>
+                  <th>APS</th>
+
+                  <!-- ANTROPOMETRI & PEMERIKSAAN -->
+                  <th>BB Sebelum Hamil</th>
+                  <th>Tinggi Badan</th>
+                  <th>BMI</th>
+                  <th>LiLA</th>
+                  <th>TD Sistolik I</th>
+                  <th>TD Diastolik I</th>
+                  <th>MAP</th>
+                  <th>Hb</th>
+
+                  <!-- RIWAYAT PENYAKIT KELUARGA -->
+                  <th>HT Keluarga</th>
+                  <th>Ginjal Keluarga</th>
+                  <th>Jantung Keluarga</th>
+
+                  <!-- HASIL PREDIKSI -->
+                  <th>Hasil</th>
+                </tr>
+              </thead>
+              <tbody id="admin-table-body">
+                {% if submissions %} {% for sub in submissions %}
+                <tr>
+                  <td class="sticky-col sticky-col-1">{{ forloop.counter }}</td>
+                  <td>{{ sub.user.email|default:"-" }}</td>
+                  <td>{{ sub.created_at|date:"Y-m-d H:i" }}</td>
+
+                  <!-- INFORMASI DASAR PASIEN -->
+                  <td>{{ sub.patient_name }}</td>
+                  <td>{{ sub.district_city|default:"-" }}</td>
+                  <td>{{ sub.patient_age }}</td>
+                  <td>{{ sub.education_level }}</td>
+                  <td>{{ sub.current_occupation }}</td>
+                  <td>{{ sub.marital_status|default:"-" }}</td>
+                  <td>{{ sub.marriage_order }}</td>
+                  <td>{{ sub.parity }}</td>
+
+                  <!-- RIWAYAT KEHAMILAN & PERENCANAAN -->
+                  <td>{{ sub.new_partner_pregnancy|yesno:"Ya,Tidak" }}</td>
+                  <td>
+                    {{ sub.child_spacing_over_10_years|yesno:"Ya,Tidak" }}
+                  </td>
+                  <td>{{ sub.ivf_pregnancy|yesno:"Ya,Tidak" }}</td>
+                  <td>{{ sub.multiple_pregnancy|yesno:"Ya,Tidak" }}</td>
+                  <td>{{ sub.smoker|yesno:"Ya,Tidak" }}</td>
+                  <td>{{ sub.planned_pregnancy|yesno:"Ya,Tidak" }}</td>
+
+                  <!-- RIWAYAT PRIBADI & PENYAKIT IBU -->
+                  <td>{{ sub.family_history_pe|yesno:"Ya,Tidak" }}</td>
+                  <td>{{ sub.personal_history_pe|yesno:"Ya,Tidak" }}</td>
+                  <td>{{ sub.chronic_hypertension|yesno:"Ya,Tidak" }}</td>
+                  <td>{{ sub.diabetes_mellitus|yesno:"Ya,Tidak" }}</td>
+                  <td>{{ sub.kidney_disease|yesno:"Ya,Tidak" }}</td>
+                  <td>{{ sub.autoimmune_disease|yesno:"Ya,Tidak" }}</td>
+                  <td>{{ sub.aps_history|yesno:"Ya,Tidak" }}</td>
+
+                  <!-- ANTROPOMETRI & PEMERIKSAAN -->
+                  <td>{{ sub.pre_pregnancy_weight }}</td>
+                  <td>{{ sub.height_cm }}</td>
+                  <td>{{ sub.bmi }}</td>
+                  <td>{{ sub.lila_cm }}</td>
+                  <td>{{ sub.systolic_bp|default:"-" }}</td>
+                  <td>{{ sub.diastolic_bp|default:"-" }}</td>
+                  <td>{{ sub.map_mmhg }}</td>
+                  <td>{{ sub.hemoglobin }}</td>
+
+                  <!-- RIWAYAT PENYAKIT KELUARGA -->
+                  <td>
+                    {{ sub.family_history_hypertension|yesno:"Ya,Tidak" }}
+                  </td>
+                  <td>{{ sub.family_history_kidney|yesno:"Ya,Tidak" }}</td>
+                  <td>{{ sub.family_history_heart|yesno:"Ya,Tidak" }}</td>
+
+                  <!-- HASIL PREDIKSI -->
+                  <td>{{ sub.result }}</td>
+                </tr>
+                {% endfor %} {% else %}
+                <tr>
+                  <td colspan="32" style="text-align: center; color: #999">
+                    Belum ada data prediksi
+                  </td>
+                </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Detail Modal -->
+    <div id="detail-modal" class="modal" style="display: none">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Detail Prediksi</h2>
+          <button class="modal-close" onclick="closeDetailModal()">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body" id="modal-body">
+          <!-- Diisi oleh JavaScript -->
+        </div>
+        <div class="modal-footer">
+          <button onclick="closeDetailModal()" class="btn btn-secondary">
+            Tutup
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="{% static 'screening/config.js' %}"></script>
+    <script src="{% static 'screening/app.js' %}"></script>
+
+    <script>
+      // Jika nanti mau tetap pakai AJAX/JS untuk load data dashboard,
+      // silakan sesuaikan fungsi loadDashboardData() di app.js
+      (function () {
+        function loadDashboardOnReady() {
+          const adminDashboard = document.getElementById(
+            "admin-dashboard-container"
+          );
+          if (adminDashboard && typeof loadDashboardData === "function") {
+            loadDashboardData();
+          }
+        }
+
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", loadDashboardOnReady);
+        } else {
+          loadDashboardOnReady();
+        }
+
+        window.addEventListener("load", function () {
+          setTimeout(loadDashboardOnReady, 200);
+        });
+      })();
+    </script>
+  </body>
+</html>

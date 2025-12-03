@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hasil Prediksi</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'screening/styles.css' %}" />
+  </head>
+  <body>
+    <div class="page">
+      <div class="result-container">
+        <div class="result-card">
+          <div class="result-header">
+            <button class="btn-back" onclick="history.back()">← Kembali</button>
+          </div>
+
+          <div class="result-content">
+            <h1>Hasil Prediksi</h1>
+            <div
+              class="result-box {% if 'Preeklampsia' in result %}preeclampsia{% else %}non-preeclampsia{% endif %}"
+            >
+              <h2>{{ result }}</h2>
+              <p class="confidence">{{ confidence }}</p>
+            </div>
+
+            <div class="result-details">
+              <h3>Detail Analisis</h3>
+
+              <div class="detail-grid">
+                <div class="detail-item">
+                  <span class="detail-label">Nama Pasien</span>
+                  <span class="detail-value">{{ patient_name }}</span>
+                </div>
+
+                <div class="detail-item">
+                  <span class="detail-label">Umur</span>
+                  <span class="detail-value">{{ patient_age }}</span>
+                </div>
+
+                <div class="detail-item">
+                  <span class="detail-label">Pendidikan</span>
+                  <span class="detail-value">{{ education }}</span>
+                </div>
+
+                <div class="detail-item">
+                  <span class="detail-label">IMT</span>
+                  <span class="detail-value">{{ bmi }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="result-recommendations">
+              <h3>Rekomendasi</h3>
+              <ul>
+                {% for item in recommendations %}
+                <li>{{ item }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+
+            <div class="result-buttons">
+              <a
+                href="{% url 'download_result' %}?submission_id={{ submission_id }}"
+                class="btn btn-primary btn-full"
+                >Download Laporan</a
+              >
+              <a href="{% url 'screening' %}" class="btn btn-secondary btn-full"
+                >Prediksi Baru</a
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

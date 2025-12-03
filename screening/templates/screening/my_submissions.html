@@ -1,0 +1,53 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Riwayat Prediksi Saya</title>
+    <link rel="stylesheet" href="{% static 'screening/styles.css' %}" />
+  </head>
+  <body>
+    <div class="page">
+      <div class="screening-container">
+        <h1>Riwayat Prediksi Saya</h1>
+        {% if submissions %}
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nama</th>
+              <th>Usia</th>
+              <th>Hasil</th>
+              <th>Confidence</th>
+              <th>Tanggal</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in submissions %}
+            <tr>
+              <td>{{ s.id }}</td>
+              <td>{{ s.patient_name }}</td>
+              <td>{{ s.patient_age }}</td>
+              <td>{{ s.result }}</td>
+              <td>{{ s.confidence }}</td>
+              <td>{{ s.created_at }}</td>
+              <td>
+                <a
+                  href="{% url 'download_result' %}?submission_id={{ s.id }}"
+                  class="btn btn-primary"
+                  >Download</a
+                >
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p>Belum ada prediksi.</p>
+        {% endif %}
+      </div>
+    </div>
+  </body>
+</html>

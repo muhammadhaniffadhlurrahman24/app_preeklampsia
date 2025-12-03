@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Screening Preeklampsia</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'screening/styles.css' %}" />
+  </head>
+  <body>
+    <!-- Screening Form Page -->
+    <div id="screeningPage" class="page">
+      <div class="screening-container">
+        {% if error %}
+        <div
+          style="
+            background: #fee2e2;
+            border: 1px solid #fca5a5;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            color: #7f1d1d;
+          "
+        >
+          {{ error }}
+        </div>
+        {% endif %}
+        {% if form_data %}
+        <script>
+          // Prefill some fields if form_data provided (JSON-safe)
+          document.addEventListener("DOMContentLoaded", function () {
+            try {
+              const fd = JSON.parse("{{ form_data|escapejs }}");
+              for (const k in fd) {
+                const el = document.querySelector('[name="' + k + '"]');
+                if (el) {
+                  el.value = fd[k];
+                }
+              }
+            } catch (e) {
+              console.warn("Could not prefill form_data", e);
+            }
+          });
+        </script>
+        {% endif %}
+        {% if messages %}
+        <div id="django-messages" style="display:none;">
+          {% for message in messages %}
+          <div data-message="{{ message|escapejs }}"></div>
+          {% endfor %}
+        </div>
+        <script>
+          document.addEventListener('DOMContentLoaded', function(){
+            var messageElements = document.querySelectorAll('#django-messages [data-message]');
+            messageElements.forEach(function(el) {
+              alert(el.getAttribute('data-message'));
+            });
+          });
+        </script>
+        {% endif %}
+        <!-- Header -->
+        <div class="screening-header">
+          <div class="header-top">
+            <!-- tombol logout diarahkan ke url logout Django -->
+            <button
+              class="btn-logout"
+              data-logout-url="{% url 'logout' %}"
+              onclick="location.href=this.getAttribute('data-logout-url')"
+            >
+              Logout
+            </button>
+          </div>
+          <h1>Screening Preeklampsia</h1>
+          <p class="user-info">
+            User:
+            <span id="userEmail">{{ request.user.email }}</span>
+          </p>
+        </div>
+
+        <!-- Progress Indicator -->
+        <div class="progress-section">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <p class="progress-text">
+            <span id="currentStep">1</span> dari
+            <span id="totalSteps">6</span> halaman
+          </p>
+        </div>
+
+        <!-- Form Container -->
+        <form
+          id="screeningForm"
+          class="screening-form"
+          method="POST"
+          action="{% url 'submit_screening' %}"
+        >
+          {% csrf_token %}
+
+          <!-- Step 1 -->
+          <div class="form-step" data-step="1">
+            <h2>Informasi Dasar Pasien</h2>
+
+            <div class="form-group">
+              <label>1. Nama Pasien</label>
+              <input
+                type="text"
+                name="patient_name"
+                placeholder="Masukkan nama lengkap pasien"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label>2. Kabupaten/Kota</label>
+              <input
+                type="text"
+                name="district_city"
+                placeholder="Masukkan kabupaten/kota"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label>3. Umur (Tahun)</label>
+              <input
+                type="number"
+                name="patient_age"
+                placeholder="Contoh: 28"
+                min="10"
+                max="60"
+                step="1"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label>4. Pendidikan</label>
+              <select name="education_level" required>
+                <option value="">Pilih pendidikan</option>
+                <option value="SD">SD</option>
+                <option value="SMP">SMP</option>
+                <option value="SMA">SMA</option>
+                <option value="D3">D3</option>
+                <option value="S1">S1</option>
+                <option value="S2">S2</option>
+                <option value="S3">S3</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>5. Perkerjaan </label>
+              <select name="current_occupation" required>
+                <option value="">Pilih pekerjaan</option>
+                <option value="Pedagang">Pedagang</option>
+                <option value="IRT">IRT (Ibu Rumah Tangga)</option>
+                <option value="Wiraswasta">Wiraswasta</option>
+                <option value="Swasta">Swasta</option>
+                <option value="Guru">Guru</option>
+                <option value="Tani">Tani</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>6. Status Nikah</label>
+              <select name="marital_status" required>
+                <option value="">Pilih status</option>
+                <option value="Belum Menikah">Belum Menikah</option>
+                <option value="Menikah">Menikah</option>
+                <option value="Cerai Hidup">Cerai Hidup</option>
+                <option value="Cerai Mati">Cerai Mati</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>7. Pernikahan Ke</label>
+              <input
+                type="number"
+                name="marriage_order"
+                placeholder="Contoh: 1"
+                min="1"
+                max="10"
+                step="1"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label>8. Paritas</label>
+              <input
+                type="text"
+                name="parity"
+                placeholder="Contoh: G2P1A0"
+                required
+              />
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="form-step" data-step="2" style="display: none">
+            <h2>Riwayat Kehamilan & Perencanaan</h2>
+
+            <div class="form-group">
+              <label>9. Hamil Pasangan Baru</label>
+              <select name="new_partner_pregnancy" required>
+                <option value="">Pilih jawaban</option>
+                <option value="0">Tidak</option>
+                <option value="1">Ya</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>10. Jarak Anak &gt;10 tahun </label>
+              <select name="child_spacing_over_10_years" required>
+                <option value="">Pilih jawaban</option>
+                <option value="0">Tidak</option>
+                <option value="1">Ya</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>11. Bayi Tabung </label>
+              <select name="ivf_pregnancy" required>
+                <option value="">Pilih jawaban</option>
+                <option value="0">Tidak</option>
+                <option value="1">Ya</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>12. Gemelli</label>
+              <select name="multiple_pregnancy" required>
+                <option value="">Pilih jawaban</option>
+                <option value="0">Tidak</option>
+                <option value="1">Ya</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>13. Perokok </label>
+              <select name="smoker" required>
+                <option value="">Pilih jawaban</option>
+                <option value="0">Tidak</option>
+                <option value="1">Ya</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>14. Hamil Direncanakan </label>
+              <select name="planned_pregnancy" required>
+                <option value="">Pilih jawaban</option>
+                <option value="0">Tidak</option>
+                <option value="1">Ya</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="form-step" data-step="3" style="display: none">
+            <h2>Riwayat Pribadi & Penyakit Ibu</h2>
+
+            <div class="form-group">
+              <label>15. Riwayat Keluarga Preeklampsia</label>
+              <select name="family_history_pe" required>
+                <option value="">Pilih jawaban</option>
+                <option value="0">Tidak</option>
+                <option value="1">Ya</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>16. Riwayat Preeklampsia</label>
+              <select name="personal_history_pe" required>
+                <option value="">Pilih jawaban</option>
+                <option value="0">Tidak</option>
+                <option value="1">Ya</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>17. Hipertensi Kronis </label>
+              <select name="chronic_hypertension" required>
+                <option value="">Pilih jawaban</option>
+                <option value="0">Tidak</option>
+                <option value="1">Ya</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>18. Diabetes Melitus</label>
+              <select name="diabetes_mellitus" required>
+                <option value="">Pilih jawaban</option>
+                <option value="0">Tidak</option>
+                <option value="1">Ya</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>19. Riwayat Penyakit Ginjal </label>
+              <select name="kidney_disease" required>
+                <option value="">Pilih jawaban</option>
+                <option value="0">Tidak</option>
+                <option value="1">Ya</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>20. Penyakit Autoimune</label>
+              <select name="autoimmune_disease" required>
+                <option value="">Pilih jawaban</option>
+                <option value="0">Tidak</option>
+                <option value="1">Ya</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>21. APS</label>
+              <select name="aps_history" required>
+                <option value="">Pilih jawaban</option>
+                <option value="0">Tidak</option>
+                <option value="1">Ya</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="form-step" data-step="4" style="display: none">
+            <h2>Antropometri & Pemeriksaan</h2>
+
+            <div class="form-group">
+              <label>22. BB Sebelum Hamil (Kg)</label>
+              <input
+                type="number"
+                name="pre_pregnancy_weight"
+                placeholder="Contoh: 60.5"
+                min="30"
+                max="200"
+                step="0.1"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label>23. TB (Cm)</label>
+              <input
+                type="number"
+                name="height_cm"
+                placeholder="Contoh: 160"
+                min="100"
+                max="220"
+                step="0.1"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label>24. Indeks Massa Tubuh (IMT)</label>
+              <input
+                type="number"
+                name="bmi"
+                placeholder="Contoh: 23.4"
+                min="10"
+                max="50"
+                step="0.1"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label>25. Lingkar Lengan Atas (Cm)</label>
+              <input
+                type="number"
+                name="lila_cm"
+                placeholder="Contoh: 28.5"
+                min="10"
+                max="60"
+                step="0.1"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label>26. TD Sistolik I</label>
+              <input
+                type="number"
+                name="systolic_bp"
+                placeholder="Contoh: 120"
+                min="60"
+                max="250"
+                step="1"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label>27. TD Diastolik I</label>
+              <input
+                type="number"
+                name="diastolic_bp"
+                placeholder="Contoh: 80"
+                min="40"
+                max="150"
+                step="1"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label>28. MAP (mmHg)</label>
+              <input
+                type="number"
+                name="map_mmhg"
+                placeholder="Contoh: 95.5"
+                min="40"
+                max="200"
+                step="0.1"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label>29. Hb (gr/dl)</label>
+              <input
+                type="number"
+                name="hemoglobin"
+                placeholder="Contoh: 12.5"
+                min="5"
+                max="20"
+                step="0.1"
+                required
+              />
+            </div>
+          </div>
+
+          <!-- Step 5 -->
+          <div class="form-step" data-step="5" style="display: none">
+            <h2>Riwayat Penyakit Keluarga</h2>
+
+            <div class="form-group">
+              <label>30. Hipertensi Keluarga </label>
+              <select name="family_history_hypertension" required>
+                <option value="">Pilih jawaban</option>
+                <option value="0">Tidak</option>
+                <option value="1">Ya</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>31. Riwayat Penyakit Ginjal Keluarga</label>
+              <select name="family_history_kidney" required>
+                <option value="">Pilih jawaban</option>
+                <option value="0">Tidak</option>
+                <option value="1">Ya</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>32. Riwayat Penyakit Jantung Keluarga </label>
+              <select name="family_history_heart" required>
+                <option value="">Pilih jawaban</option>
+                <option value="0">Tidak</option>
+                <option value="1">Ya</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Step 6 - Summary -->
+          <div class="form-step" data-step="6" style="display: none">
+            <h2>Ringkasan Data</h2>
+            <div class="summary-box" id="summaryContent">
+              <!-- akan diisi oleh JavaScript (app.js) -->
+            </div>
+            <p class="summary-note">
+              Periksa kembali data Anda sebelum melanjutkan. Jika ada yang
+              salah, silakan kembali ke langkah sebelumnya.
+            </p>
+          </div>
+
+          <!-- Navigation Buttons -->
+          <div class="form-buttons">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              id="prevBtn"
+              onclick="previousStep()"
+              style="display: none"
+            >
+              Sebelumnya
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              id="nextBtn"
+              onclick="nextStep()"
+            >
+              Selanjutnya
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <script src="{% static 'screening/config.js' %}"></script>
+    <!-- Fallback stub for nextStep/previousStep in case app.js fails to load -->
+    <script>
+      if (typeof nextStep === "undefined") {
+        (function () {
+          function findSteps() {
+            return Array.from(document.querySelectorAll(".form-step"));
+          }
+
+          function getCurrentIndex(steps) {
+            for (let i = 0; i < steps.length; i++) {
+              if (getComputedStyle(steps[i]).display !== "none") return i;
+            }
+            return 0;
+          }
+
+          window.nextStep = function () {
+            const steps = findSteps();
+            const idx = getCurrentIndex(steps);
+            // simple validation: check required inputs in current step
+            const req = Array.from(steps[idx].querySelectorAll("[required]"));
+            for (const el of req) {
+              if (
+                (el.type !== "checkbox" &&
+                  el.type !== "radio" &&
+                  String(el.value).trim() === "") ||
+                (el.tagName === "SELECT" && !el.value)
+              ) {
+                alert(
+                  "Mohon lengkapi semua field wajib pada halaman ini sebelum melanjutkan."
+                );
+                el.focus();
+                return;
+              }
+            }
+            if (idx < steps.length - 1) {
+              steps[idx].style.display = "none";
+              steps[idx + 1].style.display = "";
+            } else {
+              const form = document.getElementById("screeningForm");
+              if (form) form.submit();
+            }
+            // update progress UI if present
+            const currentStepEl = document.getElementById("currentStep");
+            const totalStepsEl = document.getElementById("totalSteps");
+            const progressFill = document.getElementById("progressFill");
+            const current = Math.min(idx + 1, steps.length);
+            if (currentStepEl) currentStepEl.textContent = current;
+            if (totalStepsEl) totalStepsEl.textContent = steps.length;
+            if (progressFill)
+              progressFill.style.width =
+                Math.round((current / steps.length) * 100) + "%";
+          };
+
+          window.previousStep = function () {
+            const steps = findSteps();
+            const idx = getCurrentIndex(steps);
+            if (idx > 0) {
+              steps[idx].style.display = "none";
+              steps[idx - 1].style.display = "";
+            }
+            const currentStepEl = document.getElementById("currentStep");
+            const progressFill = document.getElementById("progressFill");
+            const current = Math.max(1, idx);
+            if (currentStepEl) currentStepEl.textContent = current;
+            if (progressFill)
+              progressFill.style.width =
+                Math.round((current / steps.length) * 100) + "%";
+          };
+        })();
+      }
+    </script>
+    <script src="{% static 'screening/app.js' %}"></script>
+  </body>
+</html>
