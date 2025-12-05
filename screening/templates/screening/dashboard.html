@@ -268,8 +268,8 @@
                   <td>{{ sub.family_history_heart|yesno:"Ya,Tidak" }}</td>
 
                   <!-- HASIL PREDIKSI -->
-                  <td>{{ sub.result }}</td>
-                  <td>{{ sub.confidence|default:"-" }}</td>
+                  <td class="result-cell">{{ sub.result }}</td>
+                  <td class="confidence-cell">{{ sub.confidence|default:"-" }}</td>
                 </tr>
                 {% endfor %} {% else %}
                 <tr>

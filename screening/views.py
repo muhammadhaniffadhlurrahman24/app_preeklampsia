@@ -23,21 +23,24 @@ User = get_user_model()
 # =========================
 # LOAD MODEL RANDOM FOREST
 # MODEL UTAMA: ml_models/rf_preeclampsia.joblib
+# Model ini adalah Pipeline yang terdiri dari:
+# - ColumnTransformer (preprocessing: imputation + onehot encoding)
+# - RandomForestClassifier
 # Hasil prediksi HANYA berasal dari model ini
 # =========================
 
 MODEL_PATH = os.path.join(
     os.path.dirname(__file__),  # folder yang sama dengan views.py
     "ml_models",
-    "rf_preeclampsia.joblib",  # MODEL UTAMA untuk prediksi
+    "rf_preeclampsia.joblib",  # MODEL UTAMA untuk prediksi (Pipeline dengan preprocessing)
 )
 
 rf_model = None
 try:
-    # Load model Random Forest dari file rf_preeclampsia.joblib
-    # Model ini adalah satu-satunya sumber hasil prediksi
+    # Load model Pipeline dari file rf_preeclampsia.joblib
+    # Model ini sudah include preprocessing, jadi langsung predict dengan DataFrame
     rf_model = joblib.load(MODEL_PATH)
-    logger.info("RandomForest model loaded successfully from %s", MODEL_PATH)
+    logger.info("Model Pipeline loaded successfully from %s", MODEL_PATH)
     logger.info("Model type: %s", type(rf_model).__name__)
 except FileNotFoundError:
     logger.error("Model file not found: %s", MODEL_PATH)
@@ -156,7 +159,7 @@ def screening_view(request):
 def _to_float(val, default=0.0):
     """
     Ubah string/angka ke float, kalau gagal pakai default.
-    Default adalah 0.0 untuk menghindari NaN di model.
+    Jika default=None, return None untuk missing values (akan di-handle oleh imputer).
     """
     if val is None or val == "":
         return default
@@ -294,110 +297,78 @@ def submit_screening(request):
         )
 
     # Prediksi HANYA menggunakan model rf_preeclampsia.joblib
+    # Model ini adalah Pipeline dengan ColumnTransformer yang melakukan preprocessing otomatis
     if rf_model is not None:
         try:
-            # Bentuk satu baris data sesuai kolom di training (ALL_FINAL.csv)
-            # Map some categorical form values into numeric codes expected by the RF model
-            # (training used numeric features; the RF here is not a preprocessing pipeline)
-            education_map = {'SD': 0, 'SMP': 1, 'SMA': 2, 'D3': 3, 'S1': 4, 'S2': 5, 'S3': 6}
-            occupation_map = {'Pedagang': 0, 'IRT': 1, 'Wiraswasta': 2, 'Swasta': 3, 'Guru': 4, 'Tani': 5}
-
-            # Normalize / encode
-            ed_raw = _clean_str(data.get('education_level'))
-            edu_val = education_map.get(ed_raw, None)
-            occ_raw = _clean_str(data.get('current_occupation'))
-            occ_val = occupation_map.get(occ_raw, None)
-
-            # Map parity to numeric: Primipara=1, Multipara=2, Grandemulti=5
-            parity_map = {'Primipara': 1, 'Multipara': 2, 'Grandemulti': 5}
-            parity_raw = _clean_str(data.get('parity'))
-            parity_val = None
-            if parity_raw:
-                # Cek apakah sudah ada di mapping
-                parity_val = parity_map.get(parity_raw)
-                if parity_val is None:
-                    # Fallback: try to extract numeric from string (untuk backward compatibility)
-                    import re
-                    m = re.search(r'(\d+)', parity_raw)
-                    if m:
-                        try:
-                            parity_val = int(m.group(1))
-                        except Exception:
-                            parity_val = None
-
-            # Map marital status to numeric: Sah=1 (menikah), Tidak=0, Siri=1 (juga menikah)
-            marital_status_map = {'Sah': 1, 'Tidak': 0, 'Siri': 1}
-            marital_raw = _clean_str(data.get('marital_status'))
-            marital_val = marital_status_map.get(marital_raw, 0)  # Default 0 jika tidak ada
-
-            # Helper function untuk mengkonversi boolean ke int (0/1) dengan default 0
-            def _to_int(val, default=0):
-                """Konversi boolean/None ke int, default 0 untuk menghindari NaN"""
+            # Helper function untuk mengkonversi boolean ke string Ya/Tidak
+            def _to_yesno(val):
+                """Konversi boolean/None ke string Ya/Tidak untuk categorical features"""
                 if val is None:
-                    return default
+                    return "Tidak"
                 if isinstance(val, bool):
-                    return 1 if val else 0
+                    return "Ya" if val else "Tidak"
                 if isinstance(val, (int, float)):
-                    return int(val) if not (np.isnan(val) or np.isinf(val)) else default
+                    if np.isnan(val) or np.isinf(val):
+                        return "Tidak"
+                    return "Ya" if int(val) == 1 else "Tidak"
                 try:
                     val_str = str(val).strip().lower()
                     if val_str in ('1', 'true', 'ya', 'yes', 'on'):
-                        return 1
-                    return 0
+                        return "Ya"
+                    return "Tidak"
                 except Exception:
-                    return default
+                    return "Tidak"
 
+            # Bentuk DataFrame dengan nama kolom yang sama persis dengan training
+            # Model pipeline akan otomatis melakukan preprocessing (imputation + onehot encoding)
             row = {
-                # Urutan sesuai kolom training (29 fitur numerik)
-                # Semua nilai harus numerik, tidak boleh None/NaN
-                'Umur (Tahun)': _to_float(data.get('patient_age'), default=25.0),  # Default umur 25 tahun
-                'Pendidikan': edu_val if edu_val is not None else 0,  # Default 0 jika tidak ada
-                'Perkerjaan ': occ_val if occ_val is not None else 0,  # Default 0 jika tidak ada
-                'Status Nikah': marital_val,  # Sudah default 0 di atas
-                'Pernikahan Ke': _to_float(data.get('marriage_order'), default=1.0),  # Default 1
-                'Paritas': parity_val if parity_val is not None else 0,  # Default 0 jika tidak ada
-                'Hamil Pasangan Baru': _to_int(data.get('new_partner_pregnancy')),
-                'Jarak Anak >10 tahun ': _to_int(data.get('child_spacing_over_10_years')),
-                'Bayi Tabung ': _to_int(data.get('ivf_pregnancy')),
-                'Gemelli': _to_int(data.get('multiple_pregnancy')),
-                'Perokok ': _to_int(data.get('smoker')),
-                'Hamil Direncanakan ': _to_int(data.get('planned_pregnancy')),
-                'Riwayat Keluarga Preeklampsia': _to_int(data.get('family_history_pe')),
-                'Riwayat Preeklampsia': _to_int(data.get('personal_history_pe')),
-                'Hipertensi Kronis ': _to_int(data.get('chronic_hypertension')),
-                'Diabetes Melitus': _to_int(data.get('diabetes_mellitus')),
-                'Riwayat Penyakit Ginjal ': _to_int(data.get('kidney_disease')),
-                'Penyakit Autoimune': _to_int(data.get('autoimmune_disease')),
-                'APS': _to_int(data.get('aps_history')),
-                'BB Sebelum Hamil (Kg)': _to_float(data.get('pre_pregnancy_weight'), default=55.0),  # Default 55 kg
-                'TB (Cm)': _to_float(data.get('height_cm'), default=160.0),  # Default 160 cm
-                'Indeks Massa Tubuh (IMT)': _to_float(data.get('bmi'), default=22.0),  # Default IMT 22
-                'Lingkar Lengan Atas (Cm)': _to_float(data.get('lila_cm'), default=28.0),  # Default 28 cm
-                'TD Sistolik I': _to_float(data.get('systolic_bp'), default=120.0),  # Default 120 mmHg
-                'TD Diastolik I': _to_float(data.get('diastolic_bp'), default=80.0),  # Default 80 mmHg
-                'MAP (mmHg)': _to_float(data.get('map_mmhg'), default=93.3),  # Default MAP ~93.3
-                'Hb (gr/dl)': _to_float(data.get('hemoglobin'), default=12.0),  # Default 12 gr/dl
-                'Hipertensi Keluarga ': _to_int(data.get('family_history_hypertension')),
-                'Riwayat Penyakit Ginjal Keluarga': _to_int(data.get('family_history_kidney')),
+                # Numeric features (akan di-impute dengan median jika missing)
+                'Umur (Tahun)': _to_float(data.get('patient_age'), default=None),
+                'Pernikahan Ke': _to_float(data.get('marriage_order'), default=None),
+                'BB Sebelum Hamil (Kg)': _to_float(data.get('pre_pregnancy_weight'), default=None),
+                'TB (Cm)': _to_float(data.get('height_cm'), default=None),
+                'Indeks Massa Tubuh (IMT)': _to_float(data.get('bmi'), default=None),
+                'Lingkar Lengan Atas (Cm)': _to_float(data.get('lila_cm'), default=None),
+                'TD Sistolik I': _to_float(data.get('systolic_bp'), default=None),
+                'TD Diastolik I': _to_float(data.get('diastolic_bp'), default=None),
+                'MAP (mmHg)': _to_float(data.get('map_mmhg'), default=None),
+                'Hb (gr/dl)': _to_float(data.get('hemoglobin'), default=None),
+                
+                # Categorical features (akan di-impute dengan most_frequent + onehot encoded)
+                'Kabupaten/Kota': _clean_str(data.get('district_city')) or None,
+                'Pendidikan': _clean_str(data.get('education_level')) or None,
+                'Pekerjaan': _clean_str(data.get('current_occupation')) or None,
+                'Status Nikah': _clean_str(data.get('marital_status')) or None,
+                'Paritas': _clean_str(data.get('parity')) or None,
+                'Hamil Pasangan Baru': _to_yesno(data.get('new_partner_pregnancy')),
+                'Jarak Anak >10 tahun': _to_yesno(data.get('child_spacing_over_10_years')),
+                'Bayi Tabung': _to_yesno(data.get('ivf_pregnancy')),
+                'Gemelli': _to_yesno(data.get('multiple_pregnancy')),
+                'Perokok': _to_yesno(data.get('smoker')),
+                'Hamil Direncanakan': _to_yesno(data.get('planned_pregnancy')),
+                'Riwayat Keluarga Preeklampsia': _to_yesno(data.get('family_history_pe')),
+                'Riwayat Preeklampsia': _to_yesno(data.get('personal_history_pe')),
+                'Hipertensi Kronis': _to_yesno(data.get('chronic_hypertension')),
+                'Diabetes Melitus': _to_yesno(data.get('diabetes_mellitus')),
+                'Riwayat Penyakit Ginjal': _to_yesno(data.get('kidney_disease')),
+                'Penyakit Autoimune': _to_yesno(data.get('autoimmune_disease')),
+                'APS': _to_yesno(data.get('aps_history')),
+                'Hipertensi Keluarga': _to_yesno(data.get('family_history_hypertension')),
+                'Riwayat Penyakit Ginjal Keluarga': _to_yesno(data.get('family_history_kidney')),
+                'Riwayat Penyakit Jantung Keluarga': _to_yesno(data.get('family_history_heart')),
             }
 
+            # Buat DataFrame dengan nama kolom yang sama persis dengan training
             X_input = pd.DataFrame([row])
             
-            # Pastikan tidak ada NaN dalam DataFrame sebelum prediksi
-            # Fill NaN dengan 0 sebagai fallback (seharusnya tidak terjadi karena sudah di-handle di atas)
-            X_input = X_input.fillna(0)
-            
-            # Konversi semua kolom ke numeric, non-numeric akan menjadi NaN lalu di-fill dengan 0
-            for col in X_input.columns:
-                X_input[col] = pd.to_numeric(X_input[col], errors='coerce').fillna(0)
+            # Model pipeline akan otomatis melakukan:
+            # 1. Imputation (median untuk numeric, most_frequent untuk categorical)
+            # 2. OneHotEncoding untuk categorical features
+            # 3. Prediksi dengan RandomForest
 
-            # Convert ke numpy array tanpa nama kolom untuk menghindari warning
-            # Model dilatih dengan array numpy tanpa feature names
-            X_array = X_input.values
-
-            # PREDIKSI UTAMA: Menggunakan model rf_preeclampsia.joblib
-            # Hasil prediksi ditentukan oleh model Random Forest ini
-            y_pred_raw = rf_model.predict(X_array)[0]
+            # PREDIKSI UTAMA: Menggunakan model pipeline rf_preeclampsia.joblib
+            # Model ini sudah include preprocessing, jadi langsung predict dengan DataFrame
+            y_pred_raw = rf_model.predict(X_input)[0]
 
             # Normalize predicted label to canonical string values used elsewhere
             # ('Preeklampsia' or 'NonPreeklampsia')
@@ -428,7 +399,7 @@ def submit_screening(request):
             # Confidence calculation: try to use predict_proba and locate the Preeklampsia class index
             if hasattr(rf_model, 'predict_proba'):
                 try:
-                    probas = rf_model.predict_proba(X_array)[0]
+                    probas = rf_model.predict_proba(X_input)[0]
                     classes = list(rf_model.classes_)
 
                     # find index corresponding to Preeklampsia

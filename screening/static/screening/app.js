@@ -1,4 +1,6 @@
-// Multi-step form logic for screening_form.html
+// ===============================
+//   MULTI-STEP FORM (SCREENING)
+// ===============================
 (function () {
   let currentStepIndex = 0;
   let formSteps = [];
@@ -8,7 +10,6 @@
     formSteps = Array.from(document.querySelectorAll(".form-step"));
     totalSteps = formSteps.length;
 
-    // update totalSteps display if exists
     const totalStepsEl = document.getElementById("totalSteps");
     if (totalStepsEl) totalStepsEl.textContent = totalSteps;
 
@@ -24,9 +25,9 @@
       el.style.display = i === currentStepIndex ? "" : "none";
     });
 
-    // prev/next button visibility and labels
     const prevBtn = document.getElementById("prevBtn");
     const nextBtn = document.getElementById("nextBtn");
+
     if (prevBtn) prevBtn.style.display = currentStepIndex === 0 ? "none" : "";
 
     if (nextBtn) {
@@ -39,15 +40,15 @@
       }
     }
 
-    // update progress
     const currentStepEl = document.getElementById("currentStep");
     if (currentStepEl) currentStepEl.textContent = currentStepIndex + 1;
+
     const progressFill = document.getElementById("progressFill");
     if (progressFill) {
       const pct = Math.round(((currentStepIndex + 1) / totalSteps) * 100);
       progressFill.style.width = pct + "%";
     }
-    // If this is the final step and there's a summary area, populate it
+
     try {
       if (currentStepIndex === totalSteps - 1) {
         buildSummary();
@@ -66,25 +67,21 @@
       const val = el.value;
       if (el.tagName === "SELECT") {
         if (!val) {
-          console.log("validation failed: empty select", el.name);
           el.focus();
           return false;
         }
       } else if (el.type === "checkbox" || el.type === "radio") {
-        // if required and part of a group, check at least one checked
         const name = el.name;
         if (name) {
           const group = step.querySelectorAll('[name="' + name + '"]');
           const any = Array.from(group).some((g) => g.checked);
           if (!any) {
-            console.log("validation failed: none checked in group", name);
             el.focus();
             return false;
           }
         }
       } else {
         if (val === null || val === undefined || String(val).trim() === "") {
-          console.log("validation failed: empty input", el.name || el.tagName);
           el.focus();
           return false;
         }
@@ -93,25 +90,17 @@
     return true;
   }
 
-  // Expose functions globally used by template onclick handlers
   window.nextStep = function () {
-    console.log("nextStep called, currentStepIndex=", currentStepIndex);
     if (!formSteps.length) return;
-    // if last step, submit
+
     if (currentStepIndex === totalSteps - 1) {
       const form = document.getElementById("screeningForm");
-      if (form) {
-        form.submit();
-      }
+      if (form) form.submit();
       return;
     }
 
-    // validate current step before moving on
     if (!validateStep(currentStepIndex)) {
-      // simple feedback
-      alert(
-        "Mohon lengkapi semua field wajib pada halaman ini sebelum melanjutkan."
-      );
+      alert("Mohon lengkapi semua field wajib pada halaman ini sebelum melanjutkan.");
       return;
     }
 
@@ -126,10 +115,8 @@
   function fmtBool(val) {
     if (val === null || val === undefined || val === "") return "-";
     const s = String(val);
-    if (s === "1" || s.toLowerCase() === "true" || s.toLowerCase() === "ya")
-      return "Ya";
-    if (s === "0" || s.toLowerCase() === "false" || s.toLowerCase() === "tidak")
-      return "Tidak";
+    if (["1", "true", "ya"].includes(s.toLowerCase())) return "Ya";
+    if (["0", "false", "tidak"].includes(s.toLowerCase())) return "Tidak";
     return s;
   }
 
@@ -138,7 +125,6 @@
     const container = document.getElementById("summaryContent");
     if (!form || !container) return;
 
-    // Struktur kategori seperti app.js lama
     const categories = {
       "Informasi Dasar Pasien": [
         { key: "patient_name", label: "Nama Pasien" },
@@ -151,176 +137,78 @@
         { key: "parity", label: "Paritas" },
       ],
       "Riwayat Kehamilan & Perencanaan": [
-        {
-          key: "new_partner_pregnancy",
-          label: "Hamil Pasangan Baru",
-          map: { 0: "Tidak", 1: "Ya" },
-        },
-        {
-          key: "child_spacing_over_10_years",
-          label: "Jarak Anak >10 tahun ",
-          map: { 0: "Tidak", 1: "Ya" },
-        },
-        {
-          key: "ivf_pregnancy",
-          label: "Bayi Tabung ",
-          map: { 0: "Tidak", 1: "Ya" },
-        },
-        {
-          key: "multiple_pregnancy",
-          label: "Gemelli",
-          map: { 0: "Tidak", 1: "Ya" },
-        },
-        {
-          key: "smoker",
-          label: "Perokok ",
-          map: { 0: "Tidak", 1: "Ya" },
-        },
-        {
-          key: "planned_pregnancy",
-          label: "Hamil Direncanakan ",
-          map: { 0: "Tidak", 1: "Ya" },
-        },
+        { key: "new_partner_pregnancy", label: "Hamil Pasangan Baru", map: { 0: "Tidak", 1: "Ya" }},
+        { key: "child_spacing_over_10_years", label: "Jarak Anak >10 tahun", map: { 0: "Tidak", 1: "Ya" }},
+        { key: "ivf_pregnancy", label: "Bayi Tabung", map: { 0: "Tidak", 1: "Ya" }},
+        { key: "multiple_pregnancy", label: "Gemelli", map: { 0: "Tidak", 1: "Ya" }},
+        { key: "smoker", label: "Perokok", map: { 0: "Tidak", 1: "Ya" }},
+        { key: "planned_pregnancy", label: "Hamil Direncanakan", map: { 0: "Tidak", 1: "Ya" }},
       ],
       "Riwayat Pribadi & Penyakit Ibu": [
-        {
-          key: "family_history_pe",
-          label: "Riwayat Keluarga Preeklampsia",
-          map: { 0: "Tidak", 1: "Ya" },
-        },
-        {
-          key: "personal_history_pe",
-          label: "Riwayat Preeklampsia",
-          map: { 0: "Tidak", 1: "Ya" },
-        },
-        {
-          key: "chronic_hypertension",
-          label: "Hipertensi Kronis ",
-          map: { 0: "Tidak", 1: "Ya" },
-        },
-        {
-          key: "diabetes_mellitus",
-          label: "Diabetes Melitus",
-          map: { 0: "Tidak", 1: "Ya" },
-        },
-        {
-          key: "kidney_disease",
-          label: "Riwayat Penyakit Ginjal ",
-          map: { 0: "Tidak", 1: "Ya" },
-        },
-        {
-          key: "autoimmune_disease",
-          label: "Penyakit Autoimune",
-          map: { 0: "Tidak", 1: "Ya" },
-        },
-        {
-          key: "aps_history",
-          label: "APS",
-          map: { 0: "Tidak", 1: "Ya" },
-        },
+        { key: "family_history_pe", label: "Riwayat Keluarga Preeklampsia", map: { 0: "Tidak", 1: "Ya" }},
+        { key: "personal_history_pe", label: "Riwayat Preeklampsia", map: { 0: "Tidak", 1: "Ya" }},
+        { key: "chronic_hypertension", label: "Hipertensi Kronis", map: { 0: "Tidak", 1: "Ya" }},
+        { key: "diabetes_mellitus", label: "Diabetes Melitus", map: { 0: "Tidak", 1: "Ya" }},
+        { key: "kidney_disease", label: "Riwayat Penyakit Ginjal", map: { 0: "Tidak", 1: "Ya" }},
+        { key: "autoimmune_disease", label: "Penyakit Autoimune", map: { 0: "Tidak", 1: "Ya" }},
+        { key: "aps_history", label: "APS", map: { 0: "Tidak", 1: "Ya" }},
       ],
       "Antropometri & Pemeriksaan": [
-        {
-          key: "pre_pregnancy_weight",
-          label: "BB Sebelum Hamil (Kg)",
-          unit: "kg",
-        },
-        { key: "height_cm", label: "TB (Cm)", unit: "cm" },
-        { key: "bmi", label: "Indeks Massa Tubuh (IMT)", unit: "kg/m²" },
-        { key: "lila_cm", label: "Lingkar Lengan Atas (Cm)", unit: "cm" },
+        { key: "pre_pregnancy_weight", label: "BB Sebelum Hamil", unit: "kg" },
+        { key: "height_cm", label: "Tinggi Badan", unit: "cm" },
+        { key: "bmi", label: "BMI", unit: "kg/m²" },
+        { key: "lila_cm", label: "LiLA", unit: "cm" },
         { key: "systolic_bp", label: "TD Sistolik I", unit: "mmHg" },
         { key: "diastolic_bp", label: "TD Diastolik I", unit: "mmHg" },
         { key: "map_mmhg", label: "MAP", unit: "mmHg" },
-        { key: "hemoglobin", label: "Hb (gr/dl)", unit: "gr/dL" },
+        { key: "hemoglobin", label: "Hb", unit: "g/dL" },
       ],
       "Riwayat Penyakit Keluarga": [
-        {
-          key: "family_history_hypertension",
-          label: "Hipertensi Keluarga ",
-          map: { 0: "Tidak", 1: "Ya" },
-        },
-        {
-          key: "family_history_kidney",
-          label: "Riwayat Penyakit Ginjal Keluarga",
-          map: { 0: "Tidak", 1: "Ya" },
-        },
-        {
-          key: "family_history_heart",
-          label: "Riwayat Penyakit Jantung Keluarga ",
-          map: { 0: "Tidak", 1: "Ya" },
-        },
+        { key: "family_history_hypertension", label: "Hipertensi Keluarga", map: { 0: "Tidak", 1: "Ya" }},
+        { key: "family_history_kidney", label: "Penyakit Ginjal Keluarga", map: { 0: "Tidak", 1: "Ya" }},
+        { key: "family_history_heart", label: "Penyakit Jantung Keluarga", map: { 0: "Tidak", 1: "Ya" }},
       ],
     };
 
-    function getFieldValue(fieldDef) {
-      const { key, map, unit } = fieldDef;
-      const el = form.querySelector('[name="' + key + '"]');
+    function getFieldValue(f) {
+      const el = form.querySelector('[name="' + f.key + '"]');
       if (!el) return "-";
 
-      let raw = "";
+      let raw = el.value;
 
       if (el.tagName === "SELECT") {
-        raw = el.value;
-        // kalau ada map 0/1 → Ya/Tidak
-        if (map) {
-          const mKey = String(raw);
-          if (map[mKey] !== undefined) return map[mKey];
-        }
-        // kalau tidak ada map, gunakan text-nya (SD, SMP, dst)
-        if (!unit && !map) {
-          return el.options[el.selectedIndex]?.text || raw || "-";
-        }
-      } else if (el.type === "checkbox" || el.type === "radio") {
-        raw = el.checked ? el.value || "1" : "";
-      } else {
-        raw = el.value;
+        if (f.map && f.map[raw] !== undefined) return f.map[raw];
+        return el.options[el.selectedIndex]?.text || raw || "-";
       }
 
-      if (raw === undefined || raw === null || String(raw).trim() === "") {
-        return "-";
+      if (el.type === "checkbox" || el.type === "radio") {
+        raw = el.checked ? el.value || "1" : "0";
       }
 
-      // Kalau punya map tapi dari input non-select
-      if (map) {
-        const mKey = String(raw);
-        if (map[mKey] !== undefined) return map[mKey];
-        // fallback pakai fmtBool untuk 0/1
-        return fmtBool(raw);
-      }
+      if (!raw) return "-";
+      if (f.map && f.map[raw] !== undefined) return f.map[raw];
+      if (f.unit) return raw + " " + f.unit;
 
-      // Kalau ada unit (angka dengan satuan)
-      if (unit) {
-        return `${raw} ${unit}`;
-      }
-
-      // Default
       return raw;
     }
 
     let html = "";
 
-    for (const [category, fields] of Object.entries(categories)) {
-      html += `<div class="summary-section" style="margin-bottom: 20px;">`;
-      html += `<h4 class="summary-category" style="font-size: 14px; font-weight: 600; margin-bottom: 10px; color: var(--primary, #0066ff);">${category}</h4>`;
-
-      fields.forEach((field) => {
-        const value = getFieldValue(field);
-
+    for (const [cat, fields] of Object.entries(categories)) {
+      html += `<div class="summary-section"><h4>${cat}</h4>`;
+      fields.forEach((f) => {
         html += `
-        <div class="summary-item">
-          <span class="summary-label">${field.label}</span>
-          <span class="summary-value">${value}</span>
-        </div>
-      `;
+          <div class="summary-item">
+            <span class="summary-label">${f.label}</span>
+            <span class="summary-value">${getFieldValue(f)}</span>
+          </div>`;
       });
-
       html += `</div>`;
     }
 
     container.innerHTML = html;
   }
 
-  // init when DOM ready
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
   } else {
@@ -328,51 +216,24 @@
   }
 })();
 
-// Dashboard filtering helpers: wired to elements in `dashboard.html`
+// =======================================
+//   DASHBOARD FILTER DI dashboard.html
+// =======================================
 window.loadDashboardData = function () {
   const search = document.getElementById("search-patient");
+  const filterBtn = document.querySelector(".btn-filter");
+  const clearBtn = document.querySelector(".btn-clear");
+
   if (search) {
-    // Enter di input search -> filter
-    search.addEventListener("keyup", function (e) {
-      if (e.key === "Enter") {
-        filterData();
-      }
+    search.addEventListener("keyup", (e) => {
+      if (e.key === "Enter") filterData();
     });
   }
-
-  const filterButtons = document.querySelectorAll(".btn-filter");
-  filterButtons.forEach((btn) => {
-    btn.addEventListener("click", function (e) {
-      e.preventDefault();
-      filterData();
-    });
-  });
-
-  const clearButtons = document.querySelectorAll(".btn-clear");
-  clearButtons.forEach((btn) => {
-    btn.addEventListener("click", function (e) {
-      e.preventDefault();
-      clearFilters();
-    });
-  });
-
-  // delegasi klik (boleh dibiarkan)
-  document.addEventListener("click", function (ev) {
-    const t = ev.target.closest && ev.target.closest(".btn-filter");
-    if (t) {
-      ev.preventDefault();
-      filterData();
-      return;
-    }
-    const c = ev.target.closest && ev.target.closest(".btn-clear");
-    if (c) {
-      ev.preventDefault();
-      clearFilters();
-      return;
-    }
-  });
+  if (filterBtn) filterBtn.addEventListener("click", filterData);
+  if (clearBtn) clearBtn.addEventListener("click", clearFilters);
 };
 
+// FILTER UTAMA
 window.filterData = function () {
   console.debug("filterData called");
 
@@ -405,15 +266,18 @@ window.filterData = function () {
     // 2: Tanggal
     // 3: Nama Pasien
     // ...
-    // n-1: Hasil (kolom terakhir)
+    // n-2: Hasil
+    // n-1: Confidence
     const nameCell = cells[3];
-    const resultCell = cells[cells.length - 1];
+    // Gunakan class untuk hasil jika ada; fallback ke kolom sebelum terakhir
+    const resultCell =
+      row.querySelector(".result-cell") || cells[cells.length - 2];
 
     const nameText = (nameCell?.textContent || "").toLowerCase();
     const hasilTextRaw = (resultCell?.textContent || "").toLowerCase().trim();
 
-    // Normalisasi hasil
-    const hasilText = hasilTextRaw.replace(/\s+/g, " "); // "Non Preeklampsia" -> "non preeklampsia"
+    // Normalisasi hasil: hilangkan spasi dan tanda minus
+    const hasilNorm = hasilTextRaw.replace(/[\s-]+/g, "");
 
     let show = true;
 
@@ -424,26 +288,18 @@ window.filterData = function () {
 
     // === Filter berdasarkan hasil ===
     if (show && resultFilter) {
-      // Normalisasi hasilTextRaw untuk perbandingan yang tepat
-      const normalizedHasil = hasilTextRaw
-        .replace(/\s+/g, " ") // normalize spaces
-        .replace(/-/g, " "); // replace hyphens with spaces
-      
-      const isPree =
-        normalizedHasil.includes("preeklampsia") && 
-        !normalizedHasil.includes("non");
+      const filterNorm = resultFilter.replace(/[\s-]+/g, ""); // "preeklampsia" atau "nonpreeklampsia"
 
-      const isNonPree =
-        normalizedHasil.includes("non") && 
-        normalizedHasil.includes("preeklampsia");
+      // Normalisasi hasil: hapus spasi/dash lalu cek apakah mengandung kata kunci
+      const hasPree = hasilNorm.includes("preeklampsia") || hasilNorm.includes("preeclampsia");
+      const hasNon = hasilNorm.includes("nonpreeklampsia") || hasilNorm.includes("nonpreeclampsia");
 
-      // resultFilter value: "preeklampsia" atau "non-preeklampsia"
-      if (resultFilter === "preeklampsia" && !isPree) {
-        show = false;
-      }
-
-      if (resultFilter === "non-preeklampsia" && !isNonPree) {
-        show = false;
+      if (filterNorm.startsWith("non")) {
+        // minta Non-Preeklampsia -> harus ada 'non' di hasil
+        if (!hasNon) show = false;
+      } else if (filterNorm.includes("preeclampsia") || filterNorm.includes("preeklampsia")) {
+        // minta Preeklampsia -> harus pree dan bukan non
+        if (!hasPree || hasNon) show = false;
       }
     }
 
@@ -451,14 +307,14 @@ window.filterData = function () {
   });
 };
 
+// CLEAR FILTER
 window.clearFilters = function () {
-  console.debug("clearFilters called");
   const s = document.getElementById("search-patient");
-  if (s) s.value = "";
   const rf = document.getElementById("filter-result");
+
+  if (s) s.value = "";
   if (rf) rf.value = "";
 
-  // tampilkan semua baris lagi
   const tbody = document.getElementById("admin-table-body");
   if (tbody) {
     Array.from(tbody.querySelectorAll("tr")).forEach((row) => {
