@@ -157,7 +157,7 @@
                     RIWAYAT PENYAKIT KELUARGA
                   </th>
                   <th
-                    colspan="1"
+                    colspan="2"
                     style="text-align: center; background: #ffe6f0"
                   >
                     HASIL PREDIKSI
@@ -211,6 +211,7 @@
 
                   <!-- HASIL PREDIKSI -->
                   <th>Hasil</th>
+                  <th>Confidence</th>
                 </tr>
               </thead>
               <tbody id="admin-table-body">
@@ -268,10 +269,11 @@
 
                   <!-- HASIL PREDIKSI -->
                   <td>{{ sub.result }}</td>
+                  <td>{{ sub.confidence|default:"-" }}</td>
                 </tr>
                 {% endfor %} {% else %}
                 <tr>
-                  <td colspan="32" style="text-align: center; color: #999">
+                  <td colspan="33" style="text-align: center; color: #999">
                     Belum ada data prediksi
                   </td>
                 </tr>

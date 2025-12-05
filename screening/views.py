@@ -386,9 +386,13 @@ def submit_screening(request):
             for col in X_input.columns:
                 X_input[col] = pd.to_numeric(X_input[col], errors='coerce').fillna(0)
 
+            # Convert ke numpy array tanpa nama kolom untuk menghindari warning
+            # Model dilatih dengan array numpy tanpa feature names
+            X_array = X_input.values
+
             # PREDIKSI UTAMA: Menggunakan model rf_preeclampsia.joblib
             # Hasil prediksi ditentukan oleh model Random Forest ini
-            y_pred_raw = rf_model.predict(X_input)[0]
+            y_pred_raw = rf_model.predict(X_array)[0]
 
             # Normalize predicted label to canonical string values used elsewhere
             # ('Preeklampsia' or 'NonPreeklampsia')
@@ -419,7 +423,7 @@ def submit_screening(request):
             # Confidence calculation: try to use predict_proba and locate the Preeklampsia class index
             if hasattr(rf_model, 'predict_proba'):
                 try:
-                    probas = rf_model.predict_proba(X_input)[0]
+                    probas = rf_model.predict_proba(X_array)[0]
                     classes = list(rf_model.classes_)
 
                     # find index corresponding to Preeklampsia
@@ -587,8 +591,9 @@ def admin_dashboard(request):
     from .models import ScreeningSubmission
 
     total_predictions = ScreeningSubmission.objects.count()
-    preeclampsia_count = ScreeningSubmission.objects.filter(result__icontains="Preeklampsia").count()
-    non_preeclampsia_count = ScreeningSubmission.objects.filter(result__icontains="Non-Preeklampsia").count()
+    # Hitung persis sesuai label yang disimpan aplikasi
+    preeclampsia_count = ScreeningSubmission.objects.filter(result__iexact="Preeklampsia").count()
+    non_preeclampsia_count = ScreeningSubmission.objects.filter(result__iexact="Non-Preeklampsia").count()
     submissions = ScreeningSubmission.objects.select_related("user").order_by("-created_at")[:200]
 
     context = {
