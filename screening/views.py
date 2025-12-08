@@ -3,6 +3,7 @@ from django.contrib.auth import authenticate, login, logout, get_user_model
 from django.contrib import messages
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.views.decorators.http import require_POST
 
 import os
 import json
@@ -696,3 +697,36 @@ def admin_dashboard(request):
         "submissions": submissions,
     }
     return render(request, "screening/dashboard.html", context)
+
+
+@login_required(login_url="admin_login")
+@user_passes_test(lambda u: u.is_staff or u.is_superuser, login_url="admin_login")
+@require_POST
+def delete_submissions(request):
+    """
+    Hapus satu atau banyak submission dari dashboard admin.
+    """
+    from .models import ScreeningSubmission
+
+    action = request.POST.get("action")
+    ids = []
+
+    if action == "delete_single":
+        submission_id = request.POST.get("submission_id")
+        if submission_id and str(submission_id).isdigit():
+            ids = [int(submission_id)]
+    elif action == "bulk_delete":
+        raw_ids = request.POST.getlist("submission_ids")
+        ids = [int(val) for val in raw_ids if str(val).isdigit()]
+
+    if not ids:
+        messages.error(request, "Tidak ada data yang dipilih untuk dihapus.")
+        return redirect("admin_dashboard")
+
+    deleted_count, _ = ScreeningSubmission.objects.filter(id__in=ids).delete()
+    if deleted_count:
+        messages.success(request, f"Berhasil menghapus {deleted_count} data.")
+    else:
+        messages.info(request, "Tidak ada data yang dihapus.")
+
+    return redirect("admin_dashboard")

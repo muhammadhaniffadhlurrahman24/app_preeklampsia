@@ -271,7 +271,7 @@ window.filterData = function () {
     const nameCell = cells[3];
     // Gunakan class untuk hasil jika ada; fallback ke kolom sebelum terakhir
     const resultCell =
-      row.querySelector(".result-cell") || cells[cells.length - 2];
+      row.querySelector(".result-cell") || cells[cells.length - 4];
 
     const nameText = (nameCell?.textContent || "").toLowerCase();
     const hasilTextRaw = (resultCell?.textContent || "").toLowerCase().trim();

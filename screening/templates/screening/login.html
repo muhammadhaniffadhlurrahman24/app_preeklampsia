@@ -114,16 +114,19 @@
         {% if messages %}
         <div id="django-messages" style="display:none;">
           {% for message in messages %}
-          <div data-message="{{ message|escapejs }}"></div>
+          <div data-message="{{ message|escapejs }}" data-tag="{{ message.tags|default:'' }}"></div>
           {% endfor %}
         </div>
         <script>
           document.addEventListener("DOMContentLoaded", function () {
-            document
-              .querySelectorAll('#django-messages [data-message]')
-              .forEach(function (el) {
-                alert(el.getAttribute("data-message"));
-              });
+            document.querySelectorAll("#django-messages [data-message]").forEach(function (el) {
+              var msg = el.getAttribute("data-message") || "";
+              var tag = (el.getAttribute("data-tag") || "").toLowerCase();
+              // Notifikasi sederhana; tetap gunakan alert agar terlihat
+              if (msg) {
+                alert(msg);
+              }
+            });
           });
         </script>
         {% endif %}

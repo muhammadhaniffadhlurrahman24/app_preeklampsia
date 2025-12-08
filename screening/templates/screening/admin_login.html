@@ -39,6 +39,10 @@
           <div style="background:#fee2e2;border:1px solid #fca5a5;color:#7f1d1d;padding:10px;border-radius:6px;margin-bottom:12px;">
             {{ error }}
           </div>
+        <script>
+          // Tampilkan alert ketika kredensial salah
+          alert("{{ error|escapejs }}");
+        </script>
           {% endif %}
 
           {% if messages %}
@@ -112,16 +116,18 @@
         {% if messages %}
         <div id="django-messages" style="display:none;">
           {% for message in messages %}
-          <div data-message="{{ message|escapejs }}"></div>
+          <div data-message="{{ message|escapejs }}" data-tag="{{ message.tags|default:'' }}"></div>
           {% endfor %}
         </div>
         <script>
           document.addEventListener("DOMContentLoaded", function () {
-            document
-              .querySelectorAll('#django-messages [data-message]')
-              .forEach(function (el) {
-                alert(el.getAttribute("data-message"));
-              });
+            document.querySelectorAll("#django-messages [data-message]").forEach(function (el) {
+              var msg = el.getAttribute("data-message") || "";
+              var tag = (el.getAttribute("data-tag") || "").toLowerCase();
+              if (msg) {
+                alert(msg);
+              }
+            });
           });
         </script>
         {% endif %}

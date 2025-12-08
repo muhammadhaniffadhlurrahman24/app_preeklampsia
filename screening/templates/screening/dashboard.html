@@ -118,6 +118,26 @@
         </div>
 
         <!-- History Table -->
+        <form
+          id="bulk-delete-form"
+          method="POST"
+          action="{% url 'delete_submissions' %}"
+        >
+          {% csrf_token %}
+        </form>
+        <div class="admin-table-actions" style="margin: 12px 0">
+          <button
+            type="submit"
+            form="bulk-delete-form"
+            class="btn btn-danger"
+            id="bulk-delete-btn"
+            name="action"
+            value="bulk_delete"
+            style="background: #ff0000; border-color: #ff0000; color: #ffffff;"
+          >
+            Hapus Terpilih
+          </button>
+        </div>
         <div class="admin-table-wrapper">
           <div class="admin-table-container">
             <table class="admin-table">
@@ -162,6 +182,14 @@
                   >
                     HASIL PREDIKSI
                   </th>
+                  <th style="width: 60px; text-align: center">
+                    <input
+                      type="checkbox"
+                      id="select-all"
+                      aria-label="Pilih semua"
+                    />
+                  </th>
+                  <th>Aksi</th>
                 </tr>
                 <tr>
                   <!-- INFORMASI DASAR PASIEN -->
@@ -212,6 +240,8 @@
                   <!-- HASIL PREDIKSI -->
                   <th>Hasil</th>
                   <th>Confidence</th>
+                  <th>Pilih</th>
+                  <th>Aksi</th>
                 </tr>
               </thead>
               <tbody id="admin-table-body">
@@ -270,10 +300,42 @@
                   <!-- HASIL PREDIKSI -->
                   <td class="result-cell">{{ sub.result }}</td>
                   <td class="confidence-cell">{{ sub.confidence|default:"-" }}</td>
+                  <td style="text-align: center">
+                    <input
+                      type="checkbox"
+                      class="row-checkbox"
+                      name="submission_ids"
+                      value="{{ sub.id }}"
+                      form="bulk-delete-form"
+                    />
+                  </td>
+                  <td>
+                    <form
+                      method="POST"
+                      action="{% url 'delete_submissions' %}"
+                      class="row-delete-form"
+                      style="display: inline"
+                    >
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="delete_single" />
+                      <input
+                        type="hidden"
+                        name="submission_id"
+                        value="{{ sub.id }}"
+                      />
+                      <button
+                        type="submit"
+                        class="btn btn-danger row-delete-btn"
+                        style="background: #ff0000; border-color: #ff0000; color: #ffffff;"
+                      >
+                        Hapus
+                      </button>
+                    </form>
+                  </td>
                 </tr>
                 {% endfor %} {% else %}
                 <tr>
-                  <td colspan="33" style="text-align: center; color: #999">
+                  <td colspan="39" style="text-align: center; color: #999">
                     Belum ada data prediksi
                   </td>
                 </tr>
@@ -307,6 +369,69 @@
 
     <script src="{% static 'screening/config.js' %}"></script>
     <script src="{% static 'screening/app.js' %}"></script>
+    <script>
+      (function () {
+        const selectAll = document.getElementById("select-all");
+        const bulkBtn = document.getElementById("bulk-delete-btn");
+        const bulkForm = document.getElementById("bulk-delete-form");
+
+        const getRowCheckboxes = () =>
+          Array.from(document.querySelectorAll(".row-checkbox"));
+
+        function updateSelectAll() {
+          const boxes = getRowCheckboxes();
+          const checked = boxes.filter((cb) => cb.checked);
+
+          if (selectAll) {
+            selectAll.checked =
+              boxes.length > 0 && checked.length === boxes.length;
+            selectAll.indeterminate =
+              checked.length > 0 && checked.length < boxes.length;
+          }
+
+          if (bulkBtn) bulkBtn.disabled = checked.length === 0;
+        }
+
+        if (selectAll) {
+          selectAll.addEventListener("change", () => {
+            getRowCheckboxes().forEach((cb) => {
+              cb.checked = selectAll.checked;
+            });
+            updateSelectAll();
+          });
+        }
+
+        getRowCheckboxes().forEach((cb) => {
+          cb.addEventListener("change", updateSelectAll);
+        });
+
+        if (bulkForm && bulkBtn) {
+          bulkForm.addEventListener("submit", function (e) {
+            const anyChecked = document.querySelectorAll(
+              ".row-checkbox:checked"
+            ).length;
+            if (!anyChecked) {
+              e.preventDefault();
+              alert("Pilih minimal satu data untuk dihapus.");
+              return;
+            }
+            if (!confirm("Hapus data yang dipilih?")) {
+              e.preventDefault();
+            }
+          });
+        }
+
+        document.querySelectorAll(".row-delete-form").forEach((frm) => {
+          frm.addEventListener("submit", function (e) {
+            if (!confirm("Hapus data ini?")) {
+              e.preventDefault();
+            }
+          });
+        });
+
+        updateSelectAll();
+      })();
+    </script>
 
     <script>
       // Jika nanti mau tetap pakai AJAX/JS untuk load data dashboard,
