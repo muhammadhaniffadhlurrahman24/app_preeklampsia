@@ -6,6 +6,60 @@
   let formSteps = [];
   let totalSteps = 0;
 
+  function setupDerivedCalculations() {
+    const form = document.getElementById("screeningForm");
+    if (!form) return;
+
+    const weightInput = form.querySelector('[name="pre_pregnancy_weight"]');
+    const heightInput = form.querySelector('[name="height_cm"]');
+    const bmiInput = form.querySelector('[name="bmi"]');
+    const systolicInput = form.querySelector('[name="systolic_bp"]');
+    const diastolicInput = form.querySelector('[name="diastolic_bp"]');
+    const mapInput = form.querySelector('[name="map_mmhg"]');
+
+    const toNumber = (el) => {
+      if (!el) return null;
+      const val = parseFloat(el.value);
+      return Number.isFinite(val) ? val : null;
+    };
+
+    const updateBMI = () => {
+      if (!bmiInput) return;
+      const weight = toNumber(weightInput);
+      const heightCm = toNumber(heightInput);
+      if (weight && heightCm) {
+        const heightM = heightCm / 100;
+        if (heightM > 0) {
+          const bmi = weight / (heightM * heightM);
+          bmiInput.value = Number.isFinite(bmi) ? bmi.toFixed(1) : "";
+          return;
+        }
+      }
+      bmiInput.value = "";
+    };
+
+    const updateMAP = () => {
+      if (!mapInput) return;
+      const sys = toNumber(systolicInput);
+      const dia = toNumber(diastolicInput);
+      if (sys !== null && dia !== null) {
+        const map = (sys + 2 * dia) / 3;
+        mapInput.value = Number.isFinite(map) ? map.toFixed(1) : "";
+        return;
+      }
+      mapInput.value = "";
+    };
+
+    if (weightInput) weightInput.addEventListener("input", updateBMI);
+    if (heightInput) heightInput.addEventListener("input", updateBMI);
+    if (systolicInput) systolicInput.addEventListener("input", updateMAP);
+    if (diastolicInput) diastolicInput.addEventListener("input", updateMAP);
+
+    // Prefill if data sudah ada (prefill dari server)
+    updateBMI();
+    updateMAP();
+  }
+
   function init() {
     formSteps = Array.from(document.querySelectorAll(".form-step"));
     totalSteps = formSteps.length;
@@ -14,6 +68,7 @@
     if (totalStepsEl) totalStepsEl.textContent = totalSteps;
 
     console.log("screening app init, total steps =", totalSteps);
+    setupDerivedCalculations();
     showStep(0);
   }
 
