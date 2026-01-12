@@ -286,6 +286,18 @@ window.loadDashboardData = function () {
   }
   if (filterBtn) filterBtn.addEventListener("click", filterData);
   if (clearBtn) clearBtn.addEventListener("click", clearFilters);
+
+  // Simpan nomor asli untuk semua baris saat pertama kali dimuat
+  const tbody = document.getElementById("admin-table-body");
+  if (tbody) {
+    Array.from(tbody.querySelectorAll("tr")).forEach((row) => {
+      const cells = row.children;
+      if (cells.length && !cells[0].hasAttribute("colspan")) {
+        const originalNo = cells[0].textContent.trim();
+        row.setAttribute("data-original-no", originalNo);
+      }
+    });
+  }
 };
 
 // FILTER UTAMA
@@ -313,6 +325,13 @@ window.filterData = function () {
     if (cells[0].hasAttribute("colspan")) {
       row.style.display = "";
       return;
+    }
+
+    // Simpan nomor asli jika belum disimpan
+    const noCell = cells[0];
+    if (!row.hasAttribute("data-original-no")) {
+      const originalNo = noCell.textContent.trim();
+      row.setAttribute("data-original-no", originalNo);
     }
 
     // Struktur tabel:
@@ -360,6 +379,25 @@ window.filterData = function () {
 
     row.style.display = show ? "" : "none";
   });
+
+  // Renumber visible rows sequentially
+  let counter = 1;
+  rows.forEach((row) => {
+    const cells = row.children;
+    if (!cells.length) return;
+
+    // Skip placeholder row
+    if (cells[0].hasAttribute("colspan")) {
+      return;
+    }
+
+    // Only renumber visible rows
+    if (row.style.display !== "none") {
+      const noCell = cells[0];
+      noCell.textContent = counter;
+      counter++;
+    }
+  });
 };
 
 // CLEAR FILTER
@@ -374,6 +412,15 @@ window.clearFilters = function () {
   if (tbody) {
     Array.from(tbody.querySelectorAll("tr")).forEach((row) => {
       row.style.display = "";
+      
+      // Restore original row numbers
+      const cells = row.children;
+      if (cells.length && !cells[0].hasAttribute("colspan")) {
+        const originalNo = row.getAttribute("data-original-no");
+        if (originalNo) {
+          cells[0].textContent = originalNo;
+        }
+      }
     });
   }
 };
