@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.decorators.http import require_POST
+from django.utils import timezone
 
 import os
 import json
@@ -697,6 +698,163 @@ def admin_dashboard(request):
         "submissions": submissions,
     }
     return render(request, "screening/dashboard.html", context)
+
+
+@login_required(login_url="admin_login")
+@user_passes_test(lambda u: u.is_staff or u.is_superuser, login_url="admin_login")
+def export_submissions_excel(request):
+    """
+    Export data dashboard admin ke file Excel (.xlsx) asli via openpyxl.
+    Mendukung filter sederhana via query params:
+    - search: nama pasien
+    - result: preeklampsia / non-preeklampsia
+    """
+    try:
+        from openpyxl import load_workbook
+        from openpyxl.styles import Border, Font, Side
+    except ImportError:
+        messages.error(
+            request,
+            "Modul openpyxl belum terpasang di Python yang menjalankan server. "
+            "Aktifkan virtual environment project (venv), lalu jalankan: "
+            "pip install openpyxl atau pip install -r requirements.txt. "
+            "Pastikan perintah pip memakai Python dari venv yang sama (contoh: py -m pip install openpyxl).",
+        )
+        return redirect("admin_dashboard")
+
+    from .models import ScreeningSubmission
+
+    submissions = ScreeningSubmission.objects.select_related("user").order_by("-created_at")
+
+    search_term = (request.GET.get("search") or "").strip()
+    result_filter = (request.GET.get("result") or "").strip().lower()
+
+    if search_term:
+        submissions = submissions.filter(patient_name__icontains=search_term)
+
+    if result_filter:
+        if result_filter in ("preeklampsia", "preeclampsia"):
+            submissions = submissions.filter(result__iexact="Preeklampsia")
+        elif result_filter in ("non-preeklampsia", "nonpreeklampsia", "non-preeclampsia", "nonpreeclampsia"):
+            submissions = submissions.filter(result__iexact="Non-Preeklampsia")
+
+    def yes_no(val):
+        return "Ya" if val else "Tidak"
+
+    column_order = [
+        "No", "Email", "Tanggal", "Nama Pasien", "Kabupaten/Kota", "Usia", "Pendidikan",
+        "Pekerjaan", "Status Nikah", "Pernikahan Ke", "Paritas",
+        "Pasangan Baru", "Jarak Anak >10th", "Bayi Tabung", "Gemeli", "Perokok", "Hamil Direncanakan",
+        "Riwayat Keluarga PE", "Riwayat PE", "HT Kronis", "DM", "Ginjal", "Autoimune", "APS",
+        "BB Sebelum Hamil", "Tinggi Badan", "BMI", "LiLA", "TD Sistolik I", "TD Diastolik I", "MAP", "Hb",
+        "HT Keluarga", "Ginjal Keluarga", "Jantung Keluarga",
+        "Hasil", "Confidence",
+    ]
+
+    rows = []
+    for idx, sub in enumerate(submissions, start=1):
+        rows.append(
+            {
+                "No": idx,
+                "Email": sub.user.email if sub.user else "-",
+                "Tanggal": sub.created_at.strftime("%Y-%m-%d %H:%M") if sub.created_at else "-",
+                "Nama Pasien": sub.patient_name or "-",
+                "Kabupaten/Kota": sub.district_city or "-",
+                "Usia": sub.patient_age if sub.patient_age is not None else "-",
+                "Pendidikan": sub.education_level or "-",
+                "Pekerjaan": sub.current_occupation or "-",
+                "Status Nikah": sub.marital_status or "-",
+                "Pernikahan Ke": sub.marriage_order if sub.marriage_order is not None else "-",
+                "Paritas": sub.parity or "-",
+                "Pasangan Baru": yes_no(sub.new_partner_pregnancy),
+                "Jarak Anak >10th": yes_no(sub.child_spacing_over_10_years),
+                "Bayi Tabung": yes_no(sub.ivf_pregnancy),
+                "Gemeli": yes_no(sub.multiple_pregnancy),
+                "Perokok": yes_no(sub.smoker),
+                "Hamil Direncanakan": yes_no(sub.planned_pregnancy),
+                "Riwayat Keluarga PE": yes_no(sub.family_history_pe),
+                "Riwayat PE": yes_no(sub.personal_history_pe),
+                "HT Kronis": yes_no(sub.chronic_hypertension),
+                "DM": yes_no(sub.diabetes_mellitus),
+                "Ginjal": yes_no(sub.kidney_disease),
+                "Autoimune": yes_no(sub.autoimmune_disease),
+                "APS": yes_no(sub.aps_history),
+                "BB Sebelum Hamil": sub.pre_pregnancy_weight if sub.pre_pregnancy_weight is not None else "-",
+                "Tinggi Badan": sub.height_cm if sub.height_cm is not None else "-",
+                "BMI": sub.bmi if sub.bmi is not None else "-",
+                "LiLA": sub.lila_cm if sub.lila_cm is not None else "-",
+                "TD Sistolik I": sub.systolic_bp if sub.systolic_bp is not None else "-",
+                "TD Diastolik I": sub.diastolic_bp if sub.diastolic_bp is not None else "-",
+                "MAP": sub.map_mmhg if sub.map_mmhg is not None else "-",
+                "Hb": sub.hemoglobin if sub.hemoglobin is not None else "-",
+                "HT Keluarga": yes_no(sub.family_history_hypertension),
+                "Ginjal Keluarga": yes_no(sub.family_history_kidney),
+                "Jantung Keluarga": yes_no(sub.family_history_heart),
+                "Hasil": sub.result or "-",
+                "Confidence": sub.confidence or "-",
+            }
+        )
+
+    df = pd.DataFrame(rows, columns=column_order)
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Data")
+
+    buffer.seek(0)
+    wb = load_workbook(buffer)
+    ws = wb["Data"]
+    thin = Side(border_style="thin", color="000000")
+    grid = Border(left=thin, right=thin, top=thin, bottom=thin)
+    header_font = Font(bold=True)
+
+    # Garis tipis pada semua sel (header + isi), header ditebalkan — hanya jika ada area terisi
+    if ws.max_row >= 1 and ws.max_column >= 1:
+        for row in ws.iter_rows(
+            min_row=1,
+            max_row=ws.max_row,
+            min_col=1,
+            max_col=ws.max_column,
+        ):
+            for cell in row:
+                cell.border = grid
+                if cell.row == 1:
+                    cell.font = header_font
+
+    out_buf = io.BytesIO()
+    wb.save(out_buf)
+    out_buf.seek(0)
+
+    now = timezone.localtime(timezone.now())
+    bulan_id = {
+        1: "Januari",
+        2: "Februari",
+        3: "Maret",
+        4: "April",
+        5: "Mei",
+        6: "Juni",
+        7: "Juli",
+        8: "Agustus",
+        9: "September",
+        10: "Oktober",
+        11: "November",
+        12: "Desember",
+    }
+    tanggal_label = f"{now.day} {bulan_id.get(now.month, now.strftime('%B'))} {now.year}"
+
+    if result_filter in ("preeklampsia", "preeclampsia"):
+        filename_base = "Rekap_Preeklampsia"
+    elif result_filter in ("non-preeklampsia", "nonpreeklampsia", "non-preeclampsia", "nonpreeclampsia"):
+        filename_base = "Rekap_Non Preeklampsia"
+    else:
+        filename_base = "Rekap_All Data"
+
+    filename = f"{filename_base}_{tanggal_label}.xlsx"
+    response = HttpResponse(
+        out_buf.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
 
 
 @login_required(login_url="admin_login")

@@ -126,6 +126,14 @@
           {% csrf_token %}
         </form>
         <div class="admin-table-actions" style="margin: 12px 0">
+          <a
+            href="{% url 'export_submissions_excel' %}"
+            class="btn btn-primary"
+            id="export-excel-btn"
+            style="display: inline-block; margin-right: 8px; text-decoration: none;"
+          >
+            Export Excel
+          </a>
           <button
             type="submit"
             form="bulk-delete-form"
@@ -430,6 +438,23 @@
         });
 
         updateSelectAll();
+
+        const exportBtn = document.getElementById("export-excel-btn");
+        if (exportBtn) {
+          exportBtn.addEventListener("click", function (e) {
+            e.preventDefault();
+            const search = document.getElementById("search-patient")?.value || "";
+            const result = document.getElementById("filter-result")?.value || "";
+            const params = new URLSearchParams();
+
+            if (search.trim()) params.set("search", search.trim());
+            if (result.trim()) params.set("result", result.trim());
+
+            const baseUrl = "{% url 'export_submissions_excel' %}";
+            const fullUrl = params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl;
+            window.location.href = fullUrl;
+          });
+        }
       })();
     </script>
 

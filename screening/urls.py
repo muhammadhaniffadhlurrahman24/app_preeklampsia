@@ -14,5 +14,6 @@ urlpatterns = [
     path('download/', views.download_result, name='download_result'),
     path('my-submissions/', views.my_submissions, name='my_submissions'),
     path('dashboard/', views.admin_dashboard, name='admin_dashboard'),
+    path('dashboard/export/', views.export_submissions_excel, name='export_submissions_excel'),
     path('dashboard/delete/', views.delete_submissions, name='delete_submissions'),
 ]
